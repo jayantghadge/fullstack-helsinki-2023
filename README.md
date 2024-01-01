@@ -1,2 +1,14 @@
-# fullstack-helsinki-2023
-My submissions for the Fullstack Open 2023 course at the University of Helsinki.
+# Full-Stack-Open-2023 Submissions
+
+Welcome to my repository showcasing submissions for the Fullstack Open 2023 course by the University of Helsinki.
+
+## Overview
+
+This repository contains my journey through the Fullstack Open 2023 course. The curriculum covers a wide spectrum of technologies, including JavaScript, React, Redux, Node.js, MongoDB, GraphQL, CSS, and TypeScript. The main focus is on creating React applications and implementing REST APIs.
+
+## Course Progress
+
+I've successfully completed the following parts of the course:
+
+- **Part 0:** Fundamentals of Web Applications
+- **Part 1:** Basics of React

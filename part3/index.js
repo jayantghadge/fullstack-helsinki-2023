@@ -7,6 +7,7 @@ const personsData = require("./personsData");
 app.use(express.json());
 app.use(morgan("tiny"));
 app.use(cors());
+app.use(express.static("dist"));
 
 morgan.token("postData", (request) => {
   if (request.method == "POST") return " " + JSON.stringify(request.body);

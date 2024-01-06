@@ -11,4 +11,6 @@ This repository contains my journey through the Fullstack Open 2023 course. The 
 I've successfully completed the following parts of the course:
 
 - **Part 0:** Fundamentals of Web Applications
-- **Part 1:** Basics of React
+- **Part 1:** Introduction ot React
+- **Part 2:** Communicating with server
+- **Part 3:** Programming a server with NodeJS and Express

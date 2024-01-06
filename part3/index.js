@@ -63,33 +63,26 @@ app.delete("/api/persons/:id", (request, response, next) => {
     .catch((error) => next(error));
 });
 
-// Adding new person
-app.post("/api/persons", (request, response) => {
+// Adding a person
+app.post("/api/persons", (request, response, next) => {
   const body = request.body;
-
   if (!body.name || !body.number) {
     return response.status(400).json({
-      error: "Name or Number missing",
+      error: "The name or number is missing",
     });
-  }
-
-  Person.findOne({ name: body.name }).then((duplicatePerson) => {
-    if (duplicatePerson) {
-      return response.status(400).json({
-        error: "Name must be unique",
-      });
-    }
-
+  } else {
     const newPerson = new Person({
       name: body.name,
       number: body.number,
     });
 
-    newPerson.save().then((result) => {
-      console.log("Person saved!", result);
-      response.json(result);
-    });
-  });
+    newPerson
+      .save()
+      .then((result) => {
+        response.json(result);
+      })
+      .catch((error) => next(error));
+  }
 });
 
 // Updating person by ID

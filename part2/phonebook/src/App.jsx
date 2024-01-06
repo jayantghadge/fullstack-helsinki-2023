@@ -143,11 +143,14 @@ const App = () => {
           showNotification("success", `Added ${newName}`);
         })
         .catch((error) => {
-          console.error("Error adding person:", error);
+          showNotification("error", `${error.response.data.error}`);
+
+          setTimeout(() => {
+            setNotificationMessage(null);
+          }, 5000);
         });
     }
   };
-
   const handleDelete = (id) => {
     const personToDelete = persons.find((person) => person.id === id);
 

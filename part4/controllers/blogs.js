@@ -39,12 +39,18 @@ blogsRouter.post("/", async (request, response) => {
 
 // deleting a blog
 blogsRouter.delete("/:id", async (request, response) => {
-  await Blog.findByIdAndDelete(request.params.id);
-  response.status(204).end();
+  const blog = await Blog.findByIdAndDelete(request.params.id);
+
+  if (blog) {
+    response.status(204).end();
+  } else {
+    response.status(404).json({ error: "Blog not found" });
+  }
 });
 
 // updating a blog
 blogsRouter.put("/:id", async (request, response) => {
+  const { id } = request.params;
   const body = request.body;
 
   const updatedBlog = {
@@ -54,11 +60,15 @@ blogsRouter.put("/:id", async (request, response) => {
     likes: body.likes || 0,
   };
 
-  const updatedBlogResult = await Blog.findByIdAndUpdate(
-    request.params.id,
-    updatedBlog,
-    { new: true }
-  );
+  const updatedBlogResult = await Blog.findByIdAndUpdate(id, updatedBlog, {
+    new: true,
+  });
+
+  if (!updatedBlogResult) {
+    return response.status(404).json({ error: "Blog not found" });
+  }
+
   response.json(updatedBlogResult);
 });
+
 module.exports = blogsRouter;

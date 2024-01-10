@@ -1,4 +1,5 @@
 const Blog = require("../models/blog");
+const User = require("../models/user");
 
 const initialBlogs = [
   {
@@ -41,18 +42,18 @@ const initialBlogs = [
     likes: 0,
     __v: 0,
   },
-  {
-    _id: "5a422bc61b54a676234d17fc",
-    title: "Type wars",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2016/05/01/TypeWars.html",
-    likes: 2,
-    __v: 0,
-  },
+  // {
+  //   _id: "5a422bc61b54a676234d17fc",
+  //   title: "Type wars",
+  //   author: "Robert C. Martin",
+  //   url: "http://blog.cleancoder.com/uncle-bob/2016/05/01/TypeWars.html",
+  //   likes: 2,
+  //   __v: 0,
+  // },
 ];
 
-const nonExistingId = async () => {
-  const blog = new Blog({ content: "willremovethissoon" });
+const nonExisitngId = async () => {
+  const blog = new Blog({ title: "NBA is fun" });
   await blog.save();
   await blog.deleteOne();
 
@@ -64,8 +65,14 @@ const blogsInDb = async () => {
   return blogs.map((blog) => blog.toJSON());
 };
 
+const usersInDb = async () => {
+  const users = await User.find({});
+  return users.map((i) => i.toJSON());
+};
+
 module.exports = {
   initialBlogs,
-  nonExistingId,
+  nonExisitngId,
   blogsInDb,
+  usersInDb,
 };

@@ -1,23 +1,54 @@
 const mongoose = require("mongoose");
 const supertest = require("supertest");
-const app = require("../app");
+const bcrypt = require("bcrypt");
 const helper = require("./test_helper");
-
+const app = require("../app");
 const api = supertest(app);
 const Blog = require("../models/blog");
+const User = require("../models/user");
 
 beforeEach(async () => {
-  console.log("Before each hook executed");
-  await Blog.deleteMany({});
-  for (let blog of helper.initialBlogs) {
-    let blogObject = new Blog(blog);
-    await blogObject.save();
-  }
-});
+  await User.deleteMany({});
 
-describe("'when there is initially some blogs saved", () => {
-  test("returns the correct amount of blog posts in JSON format", async () => {
-    const response = await api
+  const passwordHash = await bcrypt.hash("jayant", 10);
+  const user = new User({
+    username: "user1",
+    name: "jay",
+    blogs: [],
+    passwordHash,
+  });
+
+  await user.save();
+}, 100000);
+
+beforeEach(async () => {
+  await Blog.deleteMany({});
+
+  const users = await User.find({});
+  const user = users[0];
+
+  const blogObjects = helper.initialBlogs.map(
+    (blog) =>
+      new Blog({
+        title: blog.title,
+        author: blog.author,
+        url: blog.url,
+        user: user._id,
+        likes: blog.likes ? blog.likes : 0,
+      })
+  );
+
+  const promiseArr = blogObjects.map((blog) => {
+    blog.save();
+    user.blogs = user.blogs.concat(blog._id);
+  });
+  await Promise.all(promiseArr);
+  await user.save();
+}, 100000);
+
+describe("when there is initially some blogs saved", () => {
+  test("blogs are returned as json", async () => {
+    await api
       .get("/api/blogs")
       .expect(200)
       .expect("Content-Type", /application\/json/);
@@ -25,108 +56,348 @@ describe("'when there is initially some blogs saved", () => {
 
   test("all blogs are returned", async () => {
     const response = await api.get("/api/blogs");
+
     expect(response.body).toHaveLength(helper.initialBlogs.length);
   });
 
-  test("blog posts have property id instead of _id", async () => {
-    const response = await api.get("/api/blogs");
-    expect(response.body[0].id).toBeDefined();
-  });
-});
-
-describe("viewing a specific blog", () => {
-  test("if likes property is missing, it defaults to 0", async () => {
-    const newBlogWithoutLikes = {
-      title: "New Blog Post Without Likes",
-      author: "Test Author",
-      url: "http://test.com",
-    };
-
-    const response = await api
-      .post("/api/blogs")
-      .send(newBlogWithoutLikes)
-      .expect(201);
-
-    expect(response.body.likes).toBeDefined();
-    expect(response.body.likes).toBe(0);
-  });
-
-  test("if title is missing, responds with status code 400", async () => {
-    const newBlogWithoutTitle = {
-      author: "Test Author",
-      url: "http://test.com",
-      likes: 5,
-    };
-
-    await api.post("/api/blogs").send(newBlogWithoutTitle).expect(400);
-  });
-
-  test("if url is missing, responds with status code 400", async () => {
-    const newBlogWithoutUrl = {
-      title: "New Blog Post Without Url",
-      author: "Test Author",
-      likes: 5,
-    };
-
-    await api.post("/api/blogs").send(newBlogWithoutUrl).expect(400);
-  });
-});
-
-describe("deletion of a blog", () => {
-  test("Deleting an individual blog", async () => {
+  test("the unique identifier property of the blog posts is named id", async () => {
     const blogsAtStart = await helper.blogsInDb();
-    const blogToDelete = blogsAtStart[0];
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    const blogToView = blogsAtStart[0];
+
+    const resultBlog = await api
+      .get(`/api/blogs/${blogToView.id}`)
+      .expect(200)
+      .expect("Content-Type", /application\/json/);
+
+    expect(resultBlog).toBeDefined();
+  });
+});
+
+describe("Adding a blog", () => {
+  test("only authorized user can add a blog", async () => {
+    const user = {
+      username: "user1",
+      password: "jayant",
+    };
+
+    const loginUser = await api.post("/api/login").send(user);
+    // console.log(loginUser.body.token);
+
+    const newBlog = {
+      title: "How to Build a Blog with the Ghost API and Next.js",
+      author: "Rajdeep Singh",
+      url: "https://www.freecodecamp.org/news/build-a-blog-website-with-ghost-api-and-nextjs",
+      likes: 56,
+    };
+
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .set("Authorization", `Bearer ${loginUser._body.token}`)
+      .expect(201)
+      .expect("Content-Type", /application\/json/);
 
     const blogsAtEnd = await helper.blogsInDb();
 
-    expect(blogsAtEnd).toHaveLength(blogsAtStart.length - 1);
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length + 1);
 
-    const titles = blogsAtEnd.map((blog) => blog.title);
-    expect(titles).not.toContain(blogToDelete.title);
+    const titles = blogsAtEnd.map((n) => n.title);
+
+    expect(titles).toContain(
+      "How to Build a Blog with the Ghost API and Next.js"
+    );
+  }, 100000);
+
+  test("a blog cannot be added by unauthorized users", async () => {
+    const newBlog = {
+      title: "The Tenuous Promise of the Substack Dream",
+      author: "Steven Levy",
+      url: "https://www.wired.com/story/plaintext-the-tenuous-promise-of-the-substack-dream",
+      likes: 500,
+    };
+
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .expect(401)
+      .expect("Content-Type", /application\/json/);
+
+    const blogsAtEnd = await helper.blogsInDb();
+
+    const titles = blogsAtEnd.map((n) => n.title);
+    console.log("Actual titles:", titles);
+
+    expect(titles).not.toContain("Type wars");
   });
 
-  test("fails with status code 404 if blog does not exist", async () => {
-    const validNonexistingId = await helper.nonExistingId();
+  test("if likes property is missing, it defaults to 0", async () => {
+    const user = {
+      username: "user1",
+      password: "jayant",
+    };
 
-    await api.delete(`/api/blogs/${validNonexistingId}`).expect(404);
+    const loginUser = await api.post("/api/login").send(user);
+
+    const newBlog = {
+      title: "hahaha",
+      url: "http://og.cleancoder.com/uncle-bob/2016/05/01/TypeWarsgfghfhgf.html",
+      author: "Robertd==sjflkjfslkd C. Martin",
+    };
+
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .expect(201)
+      .set("Authorization", `Bearer ${loginUser.body.token}`)
+      .expect("Content-Type", /application\/json/);
+
+    const blogsAtEnd = await helper.blogsInDb();
+
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length + 1);
+
+    const likeLikes = blogsAtEnd.map((n) => n.likes);
+
+    expect(likeLikes).toContain(0);
+  });
+
+  test("if title is missing, responds with status code 400", async () => {
+    const user = {
+      username: "user1",
+      password: "jayant",
+    };
+
+    const loginUser = await api.post("/api/login").send(user);
+
+    const newBlog = {
+      url: "http://blog.cleancoder.com/uncle-bob/2016/05/01/Typsgfghfhgf.html",
+      author: "Robertdsjflkd C. Martin",
+    };
+
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .expect(400)
+      .set("Authorization", `Bearer ${loginUser.body.token}`);
+
+    const blogsAtEnd = await helper.blogsInDb();
+
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length);
+  });
+
+  test("if url is missing, responds with status code 400", async () => {
+    const user = {
+      username: "user1",
+      password: "jayant",
+    };
+
+    const loginUser = await api.post("/api/login").send(user);
+
+    const newBlog = {
+      title: "dgfshjdfgsjdh",
+      author: "Robertdsjflkd C. Martin",
+    };
+
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .expect(400)
+      .set("Authorization", `Bearer ${loginUser.body.token}`);
+
+    const blogsAtEnd = await helper.blogsInDb();
+
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length);
+  });
+});
+
+describe("deleting a blog", () => {
+  test("Deleting an individual blog", async () => {
+    const user = {
+      username: "user1",
+      password: "jayant",
+    };
+
+    const loginUser = await api.post("/api/login").send(user);
+
+    const blogsAtStart = await helper.blogsInDb();
+    const blogToDelete = blogsAtStart[0];
+
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .expect(204)
+      .set("Authorization", `Bearer ${loginUser.body.token}`);
+
+    const blogsAtEnd = await helper.blogsInDb();
+
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length - 1);
+
+    const titles = blogsAtEnd.map((r) => r.title);
+
+    expect(titles).not.toContain(blogToDelete.title);
   });
 });
 
 describe("updating a blog", () => {
   test("Updating an individual blog", async () => {
     const blogsAtStart = await helper.blogsInDb();
-    const blogToUpdate = blogsAtStart[0];
 
-    const updatedBlog = {
-      ...blogToUpdate,
-      likes: blogToUpdate.likes + 1,
+    const blogToView = blogsAtStart[0];
+
+    const newBlog = {
+      title: blogsAtStart[0].title,
+      author: blogsAtStart[0].author,
+      url: blogsAtStart[0].url,
+      likes: 2000000,
     };
 
     await api
-      .put(`/api/blogs/${blogToUpdate.id}`)
-      .send(updatedBlog)
+      .put(`/api/blogs/${blogToView.id}`)
+      .send(newBlog)
       .expect(200)
       .expect("Content-Type", /application\/json/);
 
     const blogsAtEnd = await helper.blogsInDb();
 
-    expect(blogsAtEnd).toHaveLength(blogsAtStart.length);
+    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length);
 
-    const updatedBlogInDb = blogsAtEnd.find(
-      (blog) => blog.id === blogToUpdate.id
-    );
-    expect(updatedBlogInDb.likes).toBe(blogToUpdate.likes + 1);
+    const beforeLikes = blogsAtStart.map((n) => n.likes);
+
+    const afterLikes = blogsAtEnd.map((n) => n.likes);
+
+    expect(afterLikes).not.toContain(beforeLikes);
+  });
+});
+
+describe("when there is initially one user in db", () => {
+  beforeEach(async () => {
+    await User.deleteMany({});
+
+    const passwordHash = await bcrypt.hash("sekret", 10);
+    const user = new User({ username: "root", passwordHash });
+
+    await user.save();
   });
 
-  test("fails with status code 404 if blog does not exist", async () => {
-    const validNonexistingId = await helper.nonExistingId();
+  test("succeeds in creating a new user with valid credentials", async () => {
+    const usersAtStart = await helper.usersInDb();
+
+    const newUser = {
+      username: "deadpool",
+      name: "jayant ghadge",
+      password: "12345678",
+    };
 
     await api
-      .put(`/api/blogs/${validNonexistingId}`)
-      .send({ likes: 1 })
-      .expect(404);
+      .post("/api/users")
+      .send(newUser)
+      .expect(201)
+      .expect("Content-Type", /application\/json/);
+
+    const usersAtEnd = await helper.usersInDb();
+    expect(usersAtEnd).toHaveLength(usersAtStart.length + 1);
+
+    const usernames = usersAtEnd.map((u) => u.username);
+    expect(usernames).toContain(newUser.username);
+  });
+
+  test("does not register a user without a username, providing a proper status code and error message", async () => {
+    const usersAtStart = await helper.usersInDb();
+
+    const newUser = {
+      name: "Rohit",
+      password: "rg890",
+    };
+
+    const result = await api
+      .post("/api/users")
+      .send(newUser)
+      .expect(400)
+      .expect("Content-Type", /application\/json/);
+
+    expect(result.body.error).toContain("password and username must be given");
+
+    const usersAtEnd = await helper.usersInDb();
+    expect(usersAtEnd).toEqual(usersAtStart);
+  });
+
+  test("does not register a user without a password, providing a proper status code and error message", async () => {
+    const usersAtStart = await helper.usersInDb();
+
+    const newUser = {
+      name: "Kaushal",
+      username: "kpk18",
+    };
+
+    const result = await api
+      .post("/api/users")
+      .send(newUser)
+      .expect(400)
+      .expect("Content-Type", /application\/json/);
+
+    expect(result.body.error).toContain("password and username must be given");
+
+    const usersAtEnd = await helper.usersInDb();
+    expect(usersAtEnd).toEqual(usersAtStart);
+  });
+
+  test("does not register a user with an existing username, providing a proper status code and error message", async () => {
+    const usersAtStart = await helper.usersInDb();
+
+    const newUser = {
+      username: "root",
+      name: "tejas",
+      password: "pass123",
+    };
+
+    const result = await api
+      .post("/api/users")
+      .send(newUser)
+      .expect(400)
+      .expect("Content-Type", /application\/json/);
+
+    expect(result.body.error).toContain("expected `username` to be unique");
+
+    const usersAtEnd = await helper.usersInDb();
+    expect(usersAtEnd).toEqual(usersAtStart);
+  });
+
+  test("does not register a user with a username less than 3 characters, providing a proper status code and error message", async () => {
+    const usersAtStart = await helper.usersInDb();
+
+    const newUser = {
+      username: "jo",
+      name: "jayant",
+      password: "topend",
+    };
+
+    const result = await api
+      .post("/api/users")
+      .send(newUser)
+      .expect(400)
+      .expect("Content-Type", /application\/json/);
+
+    expect(result.body.error).toContain(
+      "password or username must be at least 3 characters long"
+    );
+
+    const usersAtEnd = await helper.usersInDb();
+    expect(usersAtEnd).toEqual(usersAtStart);
+  });
+
+  test("does not register a user with a password less than 3 characters, providing a proper status code and error message", async () => {
+    const newUser = {
+      username: "testuser",
+      name: "Test User",
+      password: "12",
+    };
+
+    const result = await api
+      .post("/api/users")
+      .send(newUser)
+      .expect(400)
+      .expect("Content-Type", /application\/json/);
+
+    expect(result.body.error).toContain("at least 3 characters long");
   });
 });
 

@@ -1,41 +1,41 @@
-import React, { useState } from "react";
-import blogService from "../services/blogs";
+import React, { useState } from "react"
+import blogService from "../services/blogs"
 
 const BlogForm = ({ setBlogs, blogs, user, setNotification }) => {
   const [newBlog, setNewBlog] = useState({
     title: "",
     author: "",
     url: "",
-  });
+  })
 
   const handleCreateBlog = async (event) => {
-    event.preventDefault();
+    event.preventDefault()
 
     try {
-      const createdBlog = await blogService.create(newBlog);
-      setBlogs([...blogs, createdBlog]);
+      const createdBlog = await blogService.create(newBlog)
+      setBlogs([...blogs, createdBlog])
 
       setNewBlog({
         title: "",
         author: "",
         url: "",
-      });
+      })
       setNotification({
         message: `Blog "${createdBlog.title}" added by ${createdBlog.author}`,
         type: "success",
-      });
+      })
     } catch (error) {
-      console.error("Error creating blog:", error.message);
+      console.error("Error creating blog:", error.message)
     }
-  };
+  }
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value } = event.target
     setNewBlog({
       ...newBlog,
       [name]: value,
-    });
-  };
+    })
+  }
 
   return (
     <div>
@@ -71,7 +71,7 @@ const BlogForm = ({ setBlogs, blogs, user, setNotification }) => {
         <button type="submit">Create Blog</button>
       </form>
     </div>
-  );
-};
+  )
+}
 
-export default BlogForm;
+export default BlogForm

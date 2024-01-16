@@ -7,13 +7,13 @@ const Notification = ({ message, type }) => {
     borderRadius: 5,
     padding: 10,
     marginBottom: 10,
-  };
-
-  if (!message) {
-    return null;
   }
 
-  return <div style={notificationStyle}>{message}</div>;
-};
+  if (!message) {
+    return null
+  }
 
-export default Notification;
+  return <div style={notificationStyle}>{message}</div>
+}
+
+export default Notification

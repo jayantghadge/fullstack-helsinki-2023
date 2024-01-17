@@ -190,9 +190,6 @@ const App = () => {
 
       <Togglable buttonLabel="Create New Blog" ref={blogFormRef}>
         <BlogForm
-          setBlogs={setBlogs}
-          blogs={blogs}
-          user={user}
           setNotification={setNotification}
           handleAddBlog={handleAddBlog}
         />

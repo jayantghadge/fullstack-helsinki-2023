@@ -1,40 +1,37 @@
-import React, { useState } from "react"
-import blogService from "../services/blogs"
+import * as React from "react"
+import {  useState } from 'react'
 
-const BlogForm = ({ setBlogs, blogs, user, setNotification }) => {
-  const [newBlog, setNewBlog] = useState({
-    title: "",
-    author: "",
-    url: "",
-  })
+const BlogForm = ({ setNotification, handleAddBlog }) => {
+  const [title, setTitle] = useState('')
+  const [author, setAuthor] = useState('')
+  const [url, setUrl] = useState('')
 
-  const handleCreateBlog = async (event) => {
-    event.preventDefault()
-
-    try {
-      const createdBlog = await blogService.create(newBlog)
-      setBlogs([...blogs, createdBlog])
-
-      setNewBlog({
-        title: "",
-        author: "",
-        url: "",
-      })
-      setNotification({
-        message: `Blog "${createdBlog.title}" added by ${createdBlog.author}`,
-        type: "success",
-      })
-    } catch (error) {
-      console.error("Error creating blog:", error.message)
-    }
+  const handleTitle = (event) => {
+    setTitle(event.target.value)
   }
 
-  const handleChange = (event) => {
-    const { name, value } = event.target
-    setNewBlog({
-      ...newBlog,
-      [name]: value,
+  const handleAuthor = (event) => {
+    setAuthor(event.target.value)
+  }
+
+  const handleUrl = (event) => {
+    setUrl(event.target.value)
+  }
+
+  const handleCreateBlog = (event) => {
+    event.preventDefault()
+    handleAddBlog({
+      title: title,
+      author: author,
+      url: url,
     })
+    setNotification({
+      message: `Blog "${title}" added by ${author}`,
+      type: "success",
+    });
+    setTitle('')
+    setAuthor('')
+    setUrl('')
   }
 
   return (
@@ -45,33 +42,36 @@ const BlogForm = ({ setBlogs, blogs, user, setNotification }) => {
           Title:
           <input
             type="text"
-            value={newBlog.title}
+            value={title}
             name="title"
-            onChange={handleChange}
+            placeholder="Title"
+            onChange={handleTitle}
           />
         </div>
         <div>
           Author:
           <input
             type="text"
-            value={newBlog.author}
+            value={author}
             name="author"
-            onChange={handleChange}
+            placeholder="Author"
+            onChange={handleAuthor}
           />
         </div>
         <div>
           URL:
           <input
             type="text"
-            value={newBlog.url}
+            value={url}
             name="url"
-            onChange={handleChange}
+            placeholder="URL"
+            onChange={handleUrl}
           />
         </div>
         <button type="submit">Create Blog</button>
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default BlogForm
+export default BlogForm;

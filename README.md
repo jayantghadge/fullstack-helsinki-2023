@@ -1,6 +1,6 @@
 # Full-Stack Open 2023 Submissions
 
-Welcome to my repository showcasing submissions for the Fullstack Open 2023 course by the University of Helsinki.
+Welcome to my repository showcasing submissions for the Fullstack Open 2023 course by the University of Helsinki and Houston Inc.
 
 ## Overview
 
